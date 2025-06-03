@@ -11,6 +11,8 @@ def load_data():
     transactions = pd.read_csv('synthetic_transactions.csv', parse_dates=['transaction_date'])
     customers = pd.read_csv('synthetic_customers.csv')
     flagged = pd.read_csv('flagged_transactions.csv', parse_dates=['transaction_date'])
+    # Convert semicolon separated flags back to a Python list
+    flagged['flags'] = flagged['flags'].fillna('').apply(lambda x: x.split(';') if x else [])
     return transactions, customers, flagged
 
 transactions, customers, flagged = load_data()
