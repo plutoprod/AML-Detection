@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import ast
 
 # Set page configuration
 st.set_page_config(page_title="AML Detection Dashboard", layout="wide")
@@ -12,8 +11,6 @@ def load_data():
     transactions = pd.read_csv('synthetic_transactions.csv', parse_dates=['transaction_date'])
     customers = pd.read_csv('synthetic_customers.csv')
     flagged = pd.read_csv('flagged_transactions.csv', parse_dates=['transaction_date'])
-    # Convert string representation of lists back to actual lists
-    flagged['flags'] = flagged['flags'].fillna('[]').apply(ast.literal_eval)
     return transactions, customers, flagged
 
 transactions, customers, flagged = load_data()
