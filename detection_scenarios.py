@@ -39,25 +39,43 @@ def apply_rapid_movement_rule(df):
     return df
 
 # Rule 3: Structuring (Smurfing)
-def apply_structuring_rule(df, structuring_threshold=9900, high_value_threshold=10000, structuring_timeframe=timedelta(days=1)):
-    df_sorted = df.sort_values(by=['sender_id', 'transaction_date'])
-    structuring_indices = []
+def apply_structuring_rule(
+    df,
+    structuring_threshold=9900,
+    high_value_threshold=10000,
+    structuring_timeframe=timedelta(days=1),
+):
+    """Flag series of small transactions that collectively exceed a high value."""
+    df_sorted = df.sort_values(by=["sender_id", "transaction_date"])
+    structuring_indices = set()
 
-    for sender, group in df_sorted.groupby('sender_id'):
+    for sender, group in df_sorted.groupby("sender_id"):
         group = group.reset_index()
         for i in range(len(group)):
-            count = 1
-            total_amount = group.loc[i, 'amount']
-            j = i + 1
-            while j < len(group) and (group.loc[j, 'transaction_date'] - group.loc[i, 'transaction_date']) <= structuring_timeframe:
-                if group.loc[j, 'amount'] < structuring_threshold:
-                    count += 1
-                    total_amount += group.loc[j, 'amount']
-                j += 1
-            if count >= 3 and total_amount >= high_value_threshold:
-                structuring_indices.extend(group.loc[i:j-1, 'index'].tolist())
+            # All transactions in the window must be below the structuring threshold
+            if group.loc[i, "amount"] >= structuring_threshold:
+                continue
 
-    df.loc[structuring_indices, 'flags'] = df.loc[structuring_indices, 'flags'].apply(lambda x: x + ['Structuring'])
+            indices = [group.loc[i, "index"]]
+            total_amount = group.loc[i, "amount"]
+
+            j = i + 1
+            while (
+                j < len(group)
+                and (group.loc[j, "transaction_date"] - group.loc[i, "transaction_date"]) <= structuring_timeframe
+                and group.loc[j, "amount"] < structuring_threshold
+            ):
+                indices.append(group.loc[j, "index"])
+                total_amount += group.loc[j, "amount"]
+                j += 1
+
+            if len(indices) >= 3 and total_amount >= high_value_threshold:
+                structuring_indices.update(indices)
+
+    if structuring_indices:
+        df.loc[list(structuring_indices), "flags"] = df.loc[list(structuring_indices), "flags"].apply(
+            lambda x: x + ["Structuring"]
+        )
     return df
 
 # Rule 4: Transactions to High-Risk Countries
@@ -74,7 +92,10 @@ high_risk_countries = ["Afghanistan", "Albania", "Barbados", "Burkina Faso", "Ca
 transactions = apply_high_risk_country_rule(transactions, high_risk_countries)
 
 # Extract flagged transactions
-flagged_transactions = transactions[transactions['flags'].apply(len) > 0]
+flagged_transactions = transactions[transactions['flags'].apply(len) > 0].copy()
+
+# Convert list of flags to a string so it round-trips via CSV
+flagged_transactions['flags'] = flagged_transactions['flags'].apply(lambda x: ';'.join(x))
 
 # Save flagged transactions to CSV
 flagged_transactions.to_csv('flagged_transactions.csv', index=False)
