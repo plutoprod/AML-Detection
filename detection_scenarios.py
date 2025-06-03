@@ -74,10 +74,7 @@ high_risk_countries = ["Afghanistan", "Albania", "Barbados", "Burkina Faso", "Ca
 transactions = apply_high_risk_country_rule(transactions, high_risk_countries)
 
 # Extract flagged transactions
-flagged_transactions = transactions[transactions['flags'].apply(len) > 0].copy()
-
-# Convert list of flags to a string so it round-trips via CSV
-flagged_transactions['flags'] = flagged_transactions['flags'].apply(lambda x: ';'.join(x))
+flagged_transactions = transactions[transactions['flags'].apply(len) > 0]
 
 # Save flagged transactions to CSV
 flagged_transactions.to_csv('flagged_transactions.csv', index=False)
